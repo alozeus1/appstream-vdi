@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Webforx AppStream VDI Stack with Auto Scaling and 4-hour session timeout.
+
+Parameters:
+  VPCId:
+    Type: String
+  SubnetIds:
+    Type: CommaDelimitedList
+  SecurityGroupId:
+    Type: String
+  FleetName:
+    Type: String
+  SessionTimeout:
+    Type: String
+    Default: "240"
+  EnableAutoScaling:
+    Type: String
+    Default: "true"
+  DesiredCapacity:
+    Type: String
+    Default: "2"
+  MinCapacity:
+    Type: String
+    Default: "1"
+  MaxCapacity:
+    Type: String
+    Default: "5"
+
+Resources:
+
+  AppStreamFleet:
+    Type: AWS::AppStream::Fleet
+    Properties:
+      Name: !Ref FleetName
+      InstanceType: stream.standard.xlarge
+      FleetType: ON_DEMAND
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      ComputeCapacity:
+        DesiredInstances: !Ref DesiredCapacity
+      MaxUserDurationInSeconds: !Ref SessionTimeout
+      EnableDefaultInternetAccess: true
+      IdleDisconnectTimeoutInSeconds: 900  # 15 mins idle timeout
+      AutoScalingPolicy:
+        !If
+          - EnableAutoScalingCondition
+          - ScalingPolicy:
+              DesiredCapacity: !Ref DesiredCapacity
+              MinCapacity: !Ref MinCapacity
+              MaxCapacity: !Ref MaxCapacity
+          - !Ref "AWS::NoValue"
+
+Conditions:
+  EnableAutoScalingCondition: !Equals [!Ref EnableAutoScaling, "true"]
+
+Outputs:
+  FleetName:
+    Value: !Ref AppStreamFleet
+    Description: The AppStream Fleet name
