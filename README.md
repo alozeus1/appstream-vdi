@@ -39,7 +39,6 @@ appstream-vdi/
 ---
 
 ## Variables
-### Variables
 
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
@@ -68,7 +67,7 @@ appstream-vdi/
 git clone https://git.edusuc.net/WEBFORX/appstream-vdi.git
 cd appstream-vdi/terraform
 ```
-2. Configure Variables
+### 2. Configure Variables
 
 Edit terraform.tfvars:
 ```hcl
@@ -76,7 +75,7 @@ stack_name         = "webforx-appstream-vdi"
 vpc_id             = "vpc-xxxxxx"
 subnet_ids         = ["subnet-aaaa", "subnet-bbbb"]
 ```
-3. Deploy Stack
+### 3. Deploy Stack
 ```sh
 terraform init
 terraform plan -var-file="terraform.tfvars"
@@ -87,14 +86,12 @@ terraform apply -var-file="terraform.tfvars"
 
 All values in variables.tf can be modified dynamically via terraform.tfvars:
 
-    -   session_timeout (default: 240 mins)
+- session_timeout (default: 240 mins)
+- fleet_name
+- min_capacity, desired_capacity, max_capacity
+- enable_autoscaling
 
-    -   fleet_name
-
-    -   min_capacity, desired_capacity, max_capacity
-
-    -   enable_autoscaling
--   
+   
 ## Next Steps (Coming Soon)
 
  - **SAML Authentik Integration**
@@ -107,7 +104,7 @@ All values in variables.tf can be modified dynamically via terraform.tfvars:
 
  - **AppStream ImageBuilder + Custom image support**
 
-##Maintained by
+## Maintained by
 
 Webforx DevOps Team
 **For internal use and training environments.**
