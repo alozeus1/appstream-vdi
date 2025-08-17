@@ -9,12 +9,8 @@ terraform {
   }
 }
 
-
-provider "aws" {
-  region = "us-east-1"
-}
-
 resource "aws_security_group" "appstream_sg" {
+  count       = var.security_group_id == null ? 1 : 0
   name        = "appstream-sg"
   description = "Security group for AppStream fleet"
   vpc_id      = var.vpc_id
@@ -40,7 +36,9 @@ resource "aws_security_group" "appstream_sg" {
 }
 
 locals {
-  effective_sg_id = var.security_group_id != null ? var.security_group_id : aws_security_group.appstream_sg.id
+codex/add-locals-block-and-update-outputs
+  effective_sg_id = var.security_group_id != null ? var.security_group_id : aws_security_group.appstream_sg[0].id
+main
 }
 
 resource "aws_cloudformation_stack" "appstream_stack" {
@@ -50,7 +48,13 @@ resource "aws_cloudformation_stack" "appstream_stack" {
   parameters = {
     VPCId             = var.vpc_id
     SubnetIds         = join(",", var.subnet_ids)
+ codex/add-locals-block-and-update-outputs
     SecurityGroupId   = local.effective_sg_id
+
+codex/modify-security-group-creation-logic-in-terraform
+    SecurityGroupId   = local.effective_sg_id
+main
+ main
     FleetName         = var.fleet_name
     SessionTimeout    = var.session_timeout
     EnableAutoScaling = var.enable_autoscaling
