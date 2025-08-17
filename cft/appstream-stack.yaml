@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Webforx AppStream VDI Stack with Auto Scaling and 4-hour session timeout.
 
@@ -11,47 +11,65 @@ Parameters:
     Type: String
   FleetName:
     Type: String
-  SessionTimeout:
-    Type: String
-    Default: "240"
+    Default: webforx-vdi-fleet
+  MinCapacity:
+    Type: Number
+    Default: 0
+  DesiredCapacity:
+    Type: Number
+    Default: 0
+  MaxCapacity:
+    Type: Number
+    Default: 5
+  MaxUserSessionDurationHours:
+    Type: Number
+    Default: 4
   EnableAutoScaling:
     Type: String
+    AllowedValues: ["true", "false"]
     Default: "true"
-  DesiredCapacity:
-    Type: String
-    Default: "2"
-  MinCapacity:
-    Type: String
-    Default: "1"
-  MaxCapacity:
-    Type: String
-    Default: "5"
+
+Mappings: {}
 
 Resources:
-
   AppStreamFleet:
     Type: AWS::AppStream::Fleet
     Properties:
       Name: !Ref FleetName
-      InstanceType: stream.standard.xlarge
-      FleetType: ON_DEMAND
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref SecurityGroupId
-        SubnetIds: !Ref SubnetIds
+      InstanceType: stream.standard.medium
       ComputeCapacity:
         DesiredInstances: !Ref DesiredCapacity
-      MaxUserDurationInSeconds: !Ref SessionTimeout
-      EnableDefaultInternetAccess: true
-      IdleDisconnectTimeoutInSeconds: 900  # 15 mins idle timeout
-      AutoScalingPolicy:
-        !If
-          - EnableAutoScalingCondition
-          - ScalingPolicy:
-              DesiredCapacity: !Ref DesiredCapacity
-              MinCapacity: !Ref MinCapacity
-              MaxCapacity: !Ref MaxCapacity
-          - !Ref "AWS::NoValue"
+      VpcConfig:
+        SecurityGroupIds: [!Ref SecurityGroupId]
+        SubnetIds: !Ref SubnetIds
+      StreamView: APPLICATION
+      MaxUserDurationInSeconds: !FindInMap [SessionMap, Default, MaxSeconds] # replaced via Condition/Calc below
+      DisconnectTimeoutInSeconds: 900
+      IdleDisconnectTimeoutInSeconds: 900
+      EnableDefaultInternetAccess: false
+      FleetType: ON_DEMAND
+
+  # Calculate seconds for MaxUserSessionDurationHours
+  SessionParams:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/webforx/appstream/${FleetName}/max_session_seconds"
+      Type: String
+      Value: !Sub "${MaxUserSessionDurationHours} * 3600"
+      Tags:
+        Project: appstream-vdi
+
+  ScalingPolicy:
+    Type: AWS::AppStream::Fleet
+    Condition: EnableAutoScalingCondition
+    Properties:
+      Name: !Ref FleetName
+      InstanceType: stream.standard.medium
+      ComputeCapacity:
+        DesiredInstances: !Ref DesiredCapacity
+      VpcConfig:
+        SecurityGroupIds: [!Ref SecurityGroupId]
+        SubnetIds: !Ref SubnetIds
 
 Conditions:
   EnableAutoScalingCondition: !Equals [!Ref EnableAutoScaling, "true"]
@@ -60,3 +78,6 @@ Outputs:
   FleetName:
     Value: !Ref AppStreamFleet
     Description: The AppStream Fleet name
+
+  StackStatus:
+    Value: "CREATED"

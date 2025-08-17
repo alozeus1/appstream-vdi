@@ -38,6 +38,28 @@ appstream-vdi/
 
 ---
 
+## Variables
+### Variables
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `stack_name` | string | `webforx-appstream-vdi` | CloudFormation stack name |
+| `region` | string | `us-east-1` | AWS region |
+| `aws_profile` | string \| null | `null` | Named profile for local runs |
+| `vpc_id` | string | n/a | Target VPC |
+| `subnet_ids` | list(string) | n/a | Subnets for fleet |
+| `security_group_id` | string \| null | `null` | Reuse SG if provided; otherwise created |
+| `fleet_name` | string | `webforx-vdi-fleet` | AppStream Fleet name |
+| `min_capacity` | number | `0` | Min instances |
+| `desired_capacity` | number | `0` | Desired instances |
+| `max_capacity` | number | `5` | Max instances |
+| `enable_autoscaling` | bool | `true` | Toggle scaling block in CFT |
+| `max_user_session_duration_hours` | number | `4` | Max session hours |
+| `tags` | map(string) | `{}` | Extra resource tags |
+| `environment` | string | `sandbox` | Env tag |
+| `project` | string | `appstream-vdi` | Project tag |
+
+
 ## 🪜 Usage Instructions
 
 ### 1. Clone the Repo
