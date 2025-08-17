@@ -30,5 +30,5 @@ jobs:
       - name: Dry-run upload
         run: |
           echo "hello from OIDC" > file.txt
-          aws s3 cp file.txt s3://edusuc-bucket/file.txt --dryrun
+          aws s3 cp file.txt s3://edusuc-bucket/file.txt
 
