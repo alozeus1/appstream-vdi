@@ -46,6 +46,7 @@ resource "aws_cloudformation_stack" "appstream_stack" {
   template_body = file("${path.module}/../cft/appstream-stack.yaml")
 
   parameters = {
+
     VPCId             = var.vpc_id
     SubnetIds         = join(",", var.subnet_ids)
  codex/add-locals-block-and-update-outputs
@@ -61,6 +62,7 @@ main
     DesiredCapacity   = var.desired_capacity
     MinCapacity       = var.min_capacity
     MaxCapacity       = var.max_capacity
+ main
   }
 
   capabilities = ["CAPABILITY_NAMED_IAM"]
