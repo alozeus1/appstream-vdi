@@ -29,7 +29,24 @@ Parameters:
     AllowedValues: ["true", "false"]
     Default: "true"
 
-Mappings: {}
+Mappings:
+  SessionDurationMap:
+    "1":
+      Seconds: 3600
+    "2":
+      Seconds: 7200
+    "3":
+      Seconds: 10800
+    "4":
+      Seconds: 14400
+    "5":
+      Seconds: 18000
+    "6":
+      Seconds: 21600
+    "7":
+      Seconds: 25200
+    "8":
+      Seconds: 28800
 
 Resources:
   AppStreamFleet:
@@ -43,33 +60,34 @@ Resources:
         SecurityGroupIds: [!Ref SecurityGroupId]
         SubnetIds: !Ref SubnetIds
       StreamView: APPLICATION
-      MaxUserDurationInSeconds: !FindInMap [SessionMap, Default, MaxSeconds] # replaced via Condition/Calc below
+      MaxUserDurationInSeconds: !FindInMap [SessionDurationMap, !Ref MaxUserSessionDurationHours, Seconds]
       DisconnectTimeoutInSeconds: 900
       IdleDisconnectTimeoutInSeconds: 900
       EnableDefaultInternetAccess: false
       FleetType: ON_DEMAND
 
-  # Calculate seconds for MaxUserSessionDurationHours
-  SessionParams:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/webforx/appstream/${FleetName}/max_session_seconds"
-      Type: String
-      Value: !Sub "${MaxUserSessionDurationHours} * 3600"
-      Tags:
-        Project: appstream-vdi
-
-  ScalingPolicy:
-    Type: AWS::AppStream::Fleet
+  AppStreamScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
     Condition: EnableAutoScalingCondition
     Properties:
-      Name: !Ref FleetName
-      InstanceType: stream.standard.medium
-      ComputeCapacity:
-        DesiredInstances: !Ref DesiredCapacity
-      VpcConfig:
-        SecurityGroupIds: [!Ref SecurityGroupId]
-        SubnetIds: !Ref SubnetIds
+      MaxCapacity: !Ref MaxCapacity
+      MinCapacity: !Ref MinCapacity
+      ResourceId: !Sub fleet/${AppStreamFleet}
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/appstream.amazonaws.com/AWSServiceRoleForAppStream
+      ScalableDimension: appstream:fleet:DesiredCapacity
+      ServiceNamespace: appstream
+
+  ScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: EnableAutoScalingCondition
+    Properties:
+      PolicyName: !Sub "${FleetName}-target-tracking"
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AppStreamScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: AppStreamAverageCapacityUtilization
+        TargetValue: 80.0
 
 Conditions:
   EnableAutoScalingCondition: !Equals [!Ref EnableAutoScaling, "true"]
