@@ -44,15 +44,15 @@ resource "aws_cloudformation_stack" "appstream_stack" {
   template_body = file("${path.module}/../cft/appstream-stack.yaml")
 
   parameters = {
-    VPCId           = var.vpc_id
-    SubnetIds       = join(",", var.subnet_ids)
-    SecurityGroupId = aws_security_group.appstream_sg.id
-    FleetName       = var.fleet_name
-    SessionTimeout  = var.session_timeout
-    EnableAutoScaling = var.enable_autoscaling
-    DesiredCapacity   = var.desired_capacity
-    MinCapacity       = var.min_capacity
-    MaxCapacity       = var.max_capacity
+    VPCId                       = var.vpc_id
+    SubnetIds                   = join(",", var.subnet_ids)
+    SecurityGroupId             = aws_security_group.appstream_sg.id
+    FleetName                   = var.fleet_name
+    EnableAutoScaling           = var.enable_autoscaling
+    DesiredCapacity             = var.desired_capacity
+    MinCapacity                 = var.min_capacity
+    MaxCapacity                 = var.max_capacity
+    MaxUserSessionDurationHours = var.max_user_session_duration_hours
   }
 
   capabilities = ["CAPABILITY_NAMED_IAM"]
