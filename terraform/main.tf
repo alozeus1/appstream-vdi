@@ -9,11 +9,6 @@ terraform {
   }
 }
 
-
-provider "aws" {
-  region = "us-east-1"
-}
-
 resource "aws_security_group" "appstream_sg" {
   count       = var.security_group_id == null ? 1 : 0
   name        = "appstream-sg"
@@ -51,7 +46,9 @@ resource "aws_cloudformation_stack" "appstream_stack" {
   parameters = {
     VPCId             = var.vpc_id
     SubnetIds         = join(",", var.subnet_ids)
+codex/modify-security-group-creation-logic-in-terraform
     SecurityGroupId   = local.effective_sg_id
+main
     FleetName         = var.fleet_name
     SessionTimeout    = var.session_timeout
     EnableAutoScaling = var.enable_autoscaling
