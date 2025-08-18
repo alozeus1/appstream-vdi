@@ -1,7 +1,7 @@
-stack_name   = "webforx-appstream-vdi"
-region       = "us-east-1"
-environment  = "sandbox"
-project      = "appstream-vdi"
+stack_name  = "webforx-appstream-vdi"
+region      = "us-east-1"
+environment = "sandbox"
+project     = "appstream-vdi"
 
 vpc_id     = "vpc-xxxxxxxx"
 subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
@@ -9,8 +9,8 @@ subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
 # Optional: reuse an existing SG
 # security_group_id = "sg-xxxxxxxx"
 
-fleet_name          = "webforx-vdi-fleet"
-fleet_instance_type = "stream.standard.medium"
+fleet_name            = "webforx-vdi-fleet"
+fleet_instance_type   = "stream.standard.medium"
 builder_instance_type = "stream.standard.large"
 
 # Start cost-safe
