@@ -26,6 +26,17 @@ variable "fleet_name" {
   default     = "webforx-vdi-fleet"
 }
 
+variable "base_image_arn" {
+  type        = string
+  description = "Optional ARN of base AppStream image for ImageBuilder. If empty, ImageBuilder is skipped."
+  default     = ""
+}
+
+variable "fleet_image_arn" {
+  type        = string
+  description = "Image ARN for the Fleet. If empty, BaseImageArn is used (must not be empty in that case)."
+  default     = ""
+}
 variable "min_capacity" {
   type        = number
   description = "Minimum capacity"

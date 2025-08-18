@@ -48,6 +48,8 @@ resource "aws_cloudformation_stack" "appstream_stack" {
     SubnetIds                   = join(",", var.subnet_ids)
     SecurityGroupId             = local.effective_sg_id
     FleetName                   = var.fleet_name
+    FleetImageArn = var.fleet_image_arn != "" ? var.fleet_image_arn : var.base_image_arn
+    BaseImageArn                = var.base_image_arn
     MaxUserSessionDurationHours = var.max_user_session_duration_hours
     EnableAutoScaling           = var.enable_autoscaling
     DesiredCapacity             = var.desired_capacity

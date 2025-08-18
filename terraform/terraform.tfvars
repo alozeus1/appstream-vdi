@@ -3,7 +3,7 @@ region      = "us-east-1"
 environment = "sandbox"
 project     = "appstream-vdi"
 
-vpc_id     = "vpc-xxxxxxxx"
+vpc_id     = "vpc-0dd535e873ee53982"
 subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
 
 # Optional: reuse an existing SG
@@ -19,8 +19,7 @@ desired_capacity = 0
 max_capacity     = 5
 
 # Create Image Builder ONLY if you set this next value:
-# (see 'Find a base image' below)
-# base_image_arn = "arn:aws:appstream:us-east-1:aws:image/<latest-windows-image>"
+base_image_arn = "arn:aws:appstream:us-east-1::image/AppStream-AmazonLinux2-02-11-2025"
 
 # 4-hour max session
 max_user_session_duration_hours = 4

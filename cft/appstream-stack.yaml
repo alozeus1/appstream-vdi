@@ -12,6 +12,14 @@ Parameters:
   FleetName:
     Type: String
     Default: webforx-vdi-fleet
+  BaseImageArn:
+    Type: String
+    Default: ""
+    Description: "Optional base image ARN for ImageBuilder (e.g., latest Windows). Leave blank to skip."
+  FleetImageArn:
+    Type: String
+    Default: ""
+    Description: "Image ARN for the Fleet. If blank, BaseImageArn will be used."
   MinCapacity:
     Type: Number
     Default: 0
@@ -54,6 +62,7 @@ Resources:
     Properties:
       Name: !Ref FleetName
       InstanceType: stream.standard.medium
+      ImageArn: !If [UseFleetImage, !Ref FleetImageArn, !Ref BaseImageArn]
       ComputeCapacity:
         DesiredInstances: !Ref DesiredCapacity
       VpcConfig:
@@ -63,7 +72,7 @@ Resources:
       MaxUserDurationInSeconds: !FindInMap [SessionDurationMap, !Ref MaxUserSessionDurationHours, Seconds]
       DisconnectTimeoutInSeconds: 900
       IdleDisconnectTimeoutInSeconds: 900
-      EnableDefaultInternetAccess: false
+      EnableDefaultInternetAccess: true
       FleetType: ON_DEMAND
 
   AppStreamScalingTarget:
@@ -89,8 +98,17 @@ Resources:
           PredefinedMetricType: AppStreamAverageCapacityUtilization
         TargetValue: 80.0
 
+  ImageBuilder:
+    Condition: CreateImageBuilder
+    Type: AWS::AppStream::ImageBuilder
+    Properties:
+      ImageArn: !Ref BaseImageArn
+
 Conditions:
   EnableAutoScalingCondition: !Equals [!Ref EnableAutoScaling, "true"]
+  CreateImageBuilder: !Not [!Equals [!Ref BaseImageArn, ""]]
+  EnableScaling: !Equals [!Ref EnableAutoScaling, "true"]
+  UseFleetImage: !Not [!Equals [!Ref FleetImageArn, ""]]
 
 Outputs:
   FleetName:
