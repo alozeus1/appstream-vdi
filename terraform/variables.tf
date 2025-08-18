@@ -73,3 +73,27 @@ variable "project" {
   description = "Project tag"
   default     = "appstream-vdi"
 }
+
+variable "fleet_instance_type" {
+  type        = string
+  description = "Instance type for the AppStream fleet (currently unused)"
+  default     = "stream.standard.medium"
+}
+
+variable "builder_instance_type" {
+  type        = string
+  description = "Instance type for the Image Builder (currently unused)"
+  default     = "stream.standard.large"
+}
+
+variable "business_hours_cron_start_utc" {
+  type        = string
+  description = "Cron expression to start fleet during business hours (currently unused)"
+  default     = "cron(0 13 * * ? *)"
+}
+
+variable "after_hours_cron_stop_utc" {
+  type        = string
+  description = "Cron expression to stop fleet after hours (currently unused)"
+  default     = "cron(0 22 * * ? *)"
+}
