@@ -4,7 +4,7 @@ environment = "sandbox"
 project     = "appstream-vdi"
 
 vpc_id     = "vpc-0dd535e873ee53982"
-subnet_ids = ["subnet-aaaaaaa", "subnet-bbbbbbb"]
+subnet_ids = ["subnet-000b3105c53bd6d52", "subnet-04b650667ba7110f5"]
 
 # Optional: reuse an existing SG
 # security_group_id = "sg-xxxxxxxx"

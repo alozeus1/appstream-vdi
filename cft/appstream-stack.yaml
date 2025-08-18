@@ -1,25 +1,31 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  Webforx AppStream VDI Stack with Auto Scaling and 4-hour session timeout.
+  WebForx AppStream VDI: Fleet + Stack + optional ImageBuilder, Home Folders, step scaling, and schedules.
 
 Parameters:
   VPCId:
     Type: String
-  SubnetIds:
-    Type: CommaDelimitedList
+  SubnetId:
+    Type: String
   SecurityGroupId:
     Type: String
   FleetName:
     Type: String
     Default: webforx-vdi-fleet
-  BaseImageArn:
+  FleetInstanceType:
     Type: String
-    Default: ""
-    Description: "Optional base image ARN for ImageBuilder (e.g., latest Windows). Leave blank to skip."
+    Default: stream.standard.medium
   FleetImageArn:
     Type: String
     Default: ""
     Description: "Image ARN for the Fleet. If blank, BaseImageArn will be used."
+  BuilderInstanceType:
+    Type: String
+    Default: stream.standard.large
+  BaseImageArn:
+    Type: String
+    Default: ""
+    Description: "Optional base image ARN for ImageBuilder (leave blank to skip ImageBuilder)."
   MinCapacity:
     Type: Number
     Default: 0
@@ -29,91 +35,184 @@ Parameters:
   MaxCapacity:
     Type: Number
     Default: 5
-  MaxUserSessionDurationHours:
+  MaxUserSessionDurationSecs:
     Type: Number
-    Default: 4
+    Default: 14400
   EnableAutoScaling:
     Type: String
-    AllowedValues: ["true", "false"]
+    AllowedValues: ["true","false"]
     Default: "true"
+  BusinessHoursCronStartUTC:
+    Type: String
+    Default: "cron(0 13 * * ? *)"
+  AfterHoursCronStopUTC:
+    Type: String
+    Default: "cron(0 22 * * ? *)"
 
-Mappings:
-  SessionDurationMap:
-    "1":
-      Seconds: 3600
-    "2":
-      Seconds: 7200
-    "3":
-      Seconds: 10800
-    "4":
-      Seconds: 14400
-    "5":
-      Seconds: 18000
-    "6":
-      Seconds: 21600
-    "7":
-      Seconds: 25200
-    "8":
-      Seconds: 28800
+Conditions:
+  CreateImageBuilder: !Not [!Equals [!Ref BaseImageArn, ""]]
+  EnableScaling: !Equals [!Ref EnableAutoScaling, "true"]
+  UseFleetImage: !Not [!Equals [!Ref FleetImageArn, ""]]
 
 Resources:
   AppStreamFleet:
     Type: AWS::AppStream::Fleet
     Properties:
       Name: !Ref FleetName
-      InstanceType: stream.standard.medium
+      InstanceType: !Ref FleetInstanceType
       ImageArn: !If [UseFleetImage, !Ref FleetImageArn, !Ref BaseImageArn]
       ComputeCapacity:
         DesiredInstances: !Ref DesiredCapacity
       VpcConfig:
-        SecurityGroupIds: [!Ref SecurityGroupId]
-        SubnetIds: !Ref SubnetIds
-      StreamView: APPLICATION
-      MaxUserDurationInSeconds: !FindInMap [SessionDurationMap, !Ref MaxUserSessionDurationHours, Seconds]
+        SecurityGroupIds: [ !Ref SecurityGroupId ]
+        SubnetIds: [ !Ref SubnetId ]   # single subnet
+      StreamView: DESKTOP              # <-- desktop sessions
+      MaxUserDurationInSeconds: !Ref MaxUserSessionDurationSecs
       DisconnectTimeoutInSeconds: 900
       IdleDisconnectTimeoutInSeconds: 900
-      EnableDefaultInternetAccess: true
+      EnableDefaultInternetAccess: false
       FleetType: ON_DEMAND
 
-  AppStreamScalingTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Condition: EnableAutoScalingCondition
+  AppStreamStack:
+    Type: AWS::AppStream::Stack
     Properties:
-      MaxCapacity: !Ref MaxCapacity
-      MinCapacity: !Ref MinCapacity
-      ResourceId: !Sub fleet/${AppStreamFleet}
-      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/appstream.amazonaws.com/AWSServiceRoleForAppStream
-      ScalableDimension: appstream:fleet:DesiredCapacity
-      ServiceNamespace: appstream
+      Name: !Sub "${FleetName}-stack"
+      Description: "AppStream VDI stack"
+      StorageConnectors:
+        - ConnectorType: HOMEFOLDERS
+      UserSettings:
+        - Action: CLIPBOARD_COPY_FROM_LOCAL_DEVICE
+          Permission: ENABLED
+        - Action: CLIPBOARD_COPY_TO_LOCAL_DEVICE
+          Permission: ENABLED
+        - Action: FILE_UPLOAD
+          Permission: ENABLED
+        - Action: FILE_DOWNLOAD
+          Permission: ENABLED
+        - Action: PRINTING_TO_LOCAL_DEVICE
+          Permission: ENABLED
 
-  ScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Condition: EnableAutoScalingCondition
+  StackFleetAssociation:
+    Type: AWS::AppStream::StackFleetAssociation
     Properties:
-      PolicyName: !Sub "${FleetName}-target-tracking"
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref AppStreamScalingTarget
-      TargetTrackingScalingPolicyConfiguration:
-        PredefinedMetricSpecification:
-          PredefinedMetricType: AppStreamAverageCapacityUtilization
-        TargetValue: 80.0
+      FleetName: !Ref AppStreamFleet
+      StackName: !Ref AppStreamStack
 
   ImageBuilder:
     Condition: CreateImageBuilder
     Type: AWS::AppStream::ImageBuilder
     Properties:
+      Name: !Sub "${FleetName}-builder"
+      DisplayName: !Sub "${FleetName}-builder"
+      Description: "Image Builder for AppStream. Use Image Assistant to install dev tools."
+      InstanceType: !Ref BuilderInstanceType
       ImageArn: !Ref BaseImageArn
+      VpcConfig:
+        SecurityGroupIds: [ !Ref SecurityGroupId ]
+        SubnetIds: [ !Ref SubnetId ]
+      EnableDefaultInternetAccess: false
 
-Conditions:
-  EnableAutoScalingCondition: !Equals [!Ref EnableAutoScaling, "true"]
-  CreateImageBuilder: !Not [!Equals [!Ref BaseImageArn, ""]]
-  EnableScaling: !Equals [!Ref EnableAutoScaling, "true"]
-  UseFleetImage: !Not [!Equals [!Ref FleetImageArn, ""]]
+  ScalableTarget:
+    Condition: EnableScaling
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: AppStreamFleet
+    Properties:
+      MaxCapacity: !Ref MaxCapacity
+      MinCapacity: !Ref MinCapacity
+      ResourceId: !Sub "fleet/${FleetName}"
+      ScalableDimension: appstream:fleet:DesiredCapacity
+      ServiceNamespace: appstream
+      SuspendedState:
+        DynamicScalingInSuspended: false
+        DynamicScalingOutSuspended: false
+        ScheduledScalingSuspended: false
+      ScheduledActions:
+        - ScheduledActionName: !Sub "${FleetName}-scale-up-business-hours"
+          Schedule: !Ref BusinessHoursCronStartUTC
+          ScalableTargetAction:
+            MinCapacity: 1
+        - ScheduledActionName: !Sub "${FleetName}-scale-down-after-hours"
+          Schedule: !Ref AfterHoursCronStopUTC
+          ScalableTargetAction:
+            MinCapacity: 0
+            MaxCapacity: 0
+
+  ScaleOutPolicy:
+    Condition: EnableScaling
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${FleetName}-scaleout"
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 120
+        MetricAggregationType: Average
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 1
+
+  ScaleInPolicy:
+    Condition: EnableScaling
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${FleetName}-scalein"
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ScalableTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 300
+        MetricAggregationType: Average
+        StepAdjustments:
+          - MetricIntervalUpperBound: 0
+            ScalingAdjustment: -1
+
+  HighUtilizationAlarm:
+    Condition: EnableScaling
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Scale out when capacity utilization >= 75%"
+      Namespace: "AWS/AppStream"
+      MetricName: "CapacityUtilization"
+      Dimensions:
+        - Name: Fleet
+          Value: !Ref FleetName
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: 75
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: "notBreaching"   # <-- quote; exact value
+      AlarmActions:
+        - !Ref ScaleOutPolicy
+
+  LowUtilizationAlarm:
+    Condition: EnableScaling
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Scale in when capacity utilization <= 25%"
+      Namespace: "AWS/AppStream"
+      MetricName: "CapacityUtilization"
+      Dimensions:
+        - Name: Fleet
+          Value: !Ref FleetName
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 10
+      Threshold: 25
+      ComparisonOperator: LessThanOrEqualToThreshold
+      TreatMissingData: "notBreaching"   # <-- quote; exact value
+      AlarmActions:
+        - !Ref ScaleInPolicy
 
 Outputs:
   FleetName:
     Value: !Ref AppStreamFleet
-    Description: The AppStream Fleet name
-
-  StackStatus:
-    Value: "CREATED"
+    Description: AppStream Fleet name
+  StackName:
+    Value: !Ref AppStreamStack
+    Description: AppStream Stack name
+  ImageBuilderName:
+    Condition: CreateImageBuilder
+    Value: !Ref ImageBuilder
+    Description: ImageBuilder name

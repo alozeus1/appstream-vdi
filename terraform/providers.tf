@@ -6,7 +6,7 @@ variable "region" {
 
 variable "aws_profile" {
   type        = string
-  description = "Optional named AWS profile for local use"
+  description = "Optional named profile for local runs"
   default     = null
 }
 

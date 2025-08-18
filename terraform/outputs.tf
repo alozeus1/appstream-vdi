@@ -8,14 +8,13 @@ output "cfn_stack_id" {
   value       = aws_cloudformation_stack.appstream_stack.id
 }
 
-output "cfn_stack_status" {
-  description = "CloudFormation stack status"
-  value       = aws_cloudformation_stack.appstream_stack.outputs["StackStatus"]
-  sensitive   = false
+output "cfn_outputs" {
+  description = "All CloudFormation outputs"
+  value       = aws_cloudformation_stack.appstream_stack.outputs
 }
 
-# Surface FleetName from CFN outputs if the template sets it
 output "fleet_name" {
   description = "AppStream Fleet Name"
   value       = coalesce(aws_cloudformation_stack.appstream_stack.outputs["FleetName"], var.fleet_name)
 }
+

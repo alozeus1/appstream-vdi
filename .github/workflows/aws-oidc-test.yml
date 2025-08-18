@@ -1,78 +1,24 @@
----
-name: tf-ci
-'on':
-  pull_request:
-  push:
-    branches: ["main"]
+# .github/workflows/aws-oidc-smoke.yml
+name: OIDC smoke test
+on:
+  workflow_dispatch: {}
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  plan:
+  sts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.6
-          terraform_wrapper: false
 
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: us-east-1
-          role-session-name: gha-appstream
+          role-session-name: gha-oidc-smoke
 
-      - name: Pre-commit (fmt/validate/tflint/checkov)
-        run: |
-          pipx install pre-commit
-          pre-commit run --all-files
-
-      - name: Terraform Init/Plan
-        working-directory: terraform
-        run: |
-          terraform init
-          terraform plan -var-file="terraform.tfvars" -out=plan.out
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: terraform/plan.out
-
-  apply:
-    if: github.ref == 'refs/heads/main'
-    needs: [plan]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.5
-          terraform_wrapper: false
-      - name: Configure AWS via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: us-east-1
-          role-session-name: gha-appstream
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: terraform
-      - name: Terraform Apply (manual)
-        working-directory: terraform
-        run: |
-          terraform init
-          terraform apply plan.out -auto-approve
+      - name: Who am I?
+        run: aws sts get-caller-identity

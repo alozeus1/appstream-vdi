@@ -1,22 +1,31 @@
 variable "stack_name" {
   type        = string
-  description = "Name of the CloudFormation stack"
+  description = "CloudFormation stack name"
   default     = "webforx-appstream-vdi"
 }
 
 variable "vpc_id" {
   type        = string
   description = "Target VPC ID"
+  validation {
+    condition     = can(regex("^vpc-([0-9a-f]{8}|[0-9a-f]{17})$", var.vpc_id))
+    error_message = "vpc_id must look like vpc-xxxxxxxx or vpc-xxxxxxxxxxxxxxxxx (hex)."
+  }
 }
 
+# variables.tf
 variable "subnet_ids" {
   type        = list(string)
-  description = "List of subnets for the fleet"
+  description = "Provide at least one subnet ID (we will use the first one)"
+  validation {
+    condition     = length(var.subnet_ids) >= 1 && alltrue([for id in var.subnet_ids : can(regex("^subnet-([0-9a-f]{8}|[0-9a-f]{17})$", id))])
+    error_message = "Provide at least one valid subnet-id."
+  }
 }
 
 variable "security_group_id" {
   type        = string
-  description = "Existing SG to reuse. If null, module will create one."
+  description = "Existing SG to reuse. If null, Terraform will create one."
   default     = null
 }
 
@@ -26,10 +35,10 @@ variable "fleet_name" {
   default     = "webforx-vdi-fleet"
 }
 
-variable "base_image_arn" {
+variable "fleet_instance_type" {
   type        = string
-  description = "Optional ARN of base AppStream image for ImageBuilder. If empty, ImageBuilder is skipped."
-  default     = ""
+  description = "Fleet instance type"
+  default     = "stream.standard.medium"
 }
 
 variable "fleet_image_arn" {
@@ -37,6 +46,19 @@ variable "fleet_image_arn" {
   description = "Image ARN for the Fleet. If empty, BaseImageArn is used (must not be empty in that case)."
   default     = ""
 }
+
+variable "builder_instance_type" {
+  type        = string
+  description = "Image Builder instance type"
+  default     = "stream.standard.large"
+}
+
+variable "base_image_arn" {
+  type        = string
+  description = "Optional base image ARN for ImageBuilder. If empty, ImageBuilder is skipped."
+  default     = ""
+}
+
 variable "min_capacity" {
   type        = number
   description = "Minimum capacity"
@@ -57,8 +79,20 @@ variable "max_capacity" {
 
 variable "enable_autoscaling" {
   type        = bool
-  description = "Enable scaling policy block in CFT"
+  description = "Enable step scaling + schedules"
   default     = true
+}
+
+variable "business_hours_cron_start_utc" {
+  type        = string
+  description = "UTC cron to scale up at business start"
+  default     = "cron(0 13 * * ? *)"
+}
+
+variable "after_hours_cron_stop_utc" {
+  type        = string
+  description = "UTC cron to scale to zero after hours"
+  default     = "cron(0 22 * * ? *)"
 }
 
 variable "max_user_session_duration_hours" {
@@ -67,15 +101,21 @@ variable "max_user_session_duration_hours" {
   default     = 4
 }
 
-variable "tags" {
-  type        = map(string)
-  description = "Extra tags to apply"
-  default     = {}
+variable "create_appstream_service_role" {
+  type        = bool
+  description = "Create the AmazonAppStreamServiceAccess service role"
+  default     = true
+}
+
+variable "create_appautoscaling_slr" {
+  type        = bool
+  description = "Create the Application Auto Scaling SLR for AppStream fleets"
+  default     = false
 }
 
 variable "environment" {
   type        = string
-  description = "Environment name (sandbox|stage|prod|network)"
+  description = "Environment tag"
   default     = "sandbox"
 }
 
@@ -85,26 +125,8 @@ variable "project" {
   default     = "appstream-vdi"
 }
 
-variable "fleet_instance_type" {
-  type        = string
-  description = "Instance type for the AppStream fleet (currently unused)"
-  default     = "stream.standard.medium"
-}
-
-variable "builder_instance_type" {
-  type        = string
-  description = "Instance type for the Image Builder (currently unused)"
-  default     = "stream.standard.large"
-}
-
-variable "business_hours_cron_start_utc" {
-  type        = string
-  description = "Cron expression to start fleet during business hours (currently unused)"
-  default     = "cron(0 13 * * ? *)"
-}
-
-variable "after_hours_cron_stop_utc" {
-  type        = string
-  description = "Cron expression to stop fleet after hours (currently unused)"
-  default     = "cron(0 22 * * ? *)"
+variable "tags" {
+  type        = map(string)
+  description = "Additional tags"
+  default     = {}
 }
