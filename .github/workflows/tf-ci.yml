@@ -5,6 +5,12 @@ on:
     branches: [ "*" ]
   push:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy (sandbox, dev, stage, prod, webforx-management)"
+        required: true
+        default: "sandbox"
 
 permissions:
   id-token: write
@@ -48,13 +54,17 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan
+      - name: Terraform Plan (PR)
         if: github.event_name == 'pull_request'
-        run: terraform plan -out=tfplan
+        run: terraform plan -var="environment=${{ github.event.inputs.environment }}" -out=tfplan
+
+      - name: Terraform Plan (Manual Dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform plan -var="environment=${{ github.event.inputs.environment }}" -out=tfplan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve
         env:
-          # Require manual approval before execution
+          # Require manual approval before execution (set via GitHub Environments for production)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

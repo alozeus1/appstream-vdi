@@ -1,10 +1,15 @@
 locals {
-  # Load region-wide defaults
-  base = yamldecode(file("${path.module}/../environments/region.yaml"))
-
-  # Load environment-specific overrides
-  env_specific = yamldecode(file("${path.module}/../environments/webforx-management.yaml"))
-
-  # Merge them together (env-specific wins if keys overlap)
-  env = merge(local.base, local.env_specific)
+  merged_tags = merge(
+    {
+      Name        = local.env.project
+      Environment = local.env.environment
+      App         = "appstream-vdi"
+      ManagedBy   = "Terraform"
+      Project     = local.env.project
+      Owner       = try(local.env.owner, "webforx-ops")
+      CostCenter  = try(local.env.cost_center, "default-cc")
+    },
+    local.env.tags,
+    var.tags
+  )
 }
