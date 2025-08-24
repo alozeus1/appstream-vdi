@@ -1,5 +1,20 @@
+variable "environment" {
+  description = "Selects which environments/<env>.yaml to load (e.g., sandbox, dev, stage, prod, webforx-management)"
+  type        = string
+  default     = "sandbox"
+}
+
 locals {
-  # Merge tags from environment configs, variables, and enterprise defaults
+
+  region_file = "${path.root}/environments/region.yaml"
+  env_file    = "${path.root}/environments/${var.environment}.yaml"
+
+
+  base         = try(yamldecode(file(local.region_file)), {})
+  env_specific = try(yamldecode(file(local.env_file)), {})
+
+  env = merge(local.base, local.env_specific)
+
   merged_tags = merge(
     {
       Name        = try(local.env.stack_name, var.stack_name)

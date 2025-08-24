@@ -1,6 +1,17 @@
+region: us-east-1
 environment: management
-project: webforx-mgmt
+project: appstream-vdi
+owner: webforx-ops
+cost_center: finops-001
+vpc_id: vpc-xxxxxxxxxxxxxxxxx
+subnet_ids:
+  - subnet-aaaaaaaaaaaaaaaaa
+  - subnet-bbbbbbbbbbbbbbbbb
+# Optional if you pre-create the SG:
+# security_group_id: sg-xxxxxxxxxxxxxxxxx
+# Optional VPN gating for ingress:
+# vpn_cidrs:
+#   - 10.200.0.0/16
 tags:
-  Environment: management
-  Owner: Webforx Technology
-
+  Department: Platform
+  Compliance: Standard

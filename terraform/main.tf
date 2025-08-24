@@ -15,7 +15,6 @@ resource "aws_security_group" "appstream_sg" {
   name        = "${try(local.env.project, var.project)}-${try(local.env.environment, var.environment)}-appstream-sg"
   description = "Security group for AppStream fleet"
   vpc_id      = try(local.env.vpc_id, var.vpc_id)
-
   egress {
     from_port   = 443
     to_port     = 443
