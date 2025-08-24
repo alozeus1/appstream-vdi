@@ -1,16 +1,8 @@
-variable "region" {
-  type        = string
-  description = "AWS region to deploy into"
-  default     = "us-east-1"
-}
-
-variable "aws_profile" {
-  type        = string
-  description = "Optional named profile for local runs"
-  default     = null
-}
-
 provider "aws" {
-  region  = var.region
+  region  = try(local.env.region, var.region)
   profile = var.aws_profile
+
+  default_tags {
+    tags = local.merged_tags
+  }
 }

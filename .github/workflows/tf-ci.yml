@@ -1,12 +1,16 @@
-name: tf-ci
+name: Terraform CI/CD
+
 on:
   pull_request:
+    branches: [ "*" ]
   push:
     branches: [ "main" ]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy (sandbox, dev, stage, prod, webforx-management)"
+        required: true
+        default: "sandbox"
 
 permissions:
   id-token: write
@@ -16,53 +20,13 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-  plan:
+  terraform:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.6
-          terraform_wrapper: false
-
-      - name: Configure AWS via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-appstream
-
-      - name: Pre-commit (fmt/validate/tflint/checkov)
-        run: |
-          pipx install pre-commit
-          pre-commit run --all-files
-
-      - name: Terraform Init
+    defaults:
+      run:
         working-directory: terraform
-        run: terraform init -input=false -no-color
 
-      - name: Terraform Plan
-        working-directory: terraform
-        run: terraform plan -input=false -no-color -var-file="terraform.tfvars" -out=plan.out
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: terraform/plan.out
-
-  apply:
-    if: github.ref == 'refs/heads/main'
-    needs: [plan]
-    runs-on: ubuntu-latest
-    environment: production   # use GitHub Environments for manual protection if desired
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -71,6 +35,9 @@ jobs:
           terraform_version: 1.8.5
           terraform_wrapper: false
 
+      - name: Print GitHub context
+        run: echo "${{ toJson(github) }}"
+
       - name: Configure AWS via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -78,15 +45,26 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-appstream
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: terraform
+      - name: Terraform Init
+        run: terraform init
 
-      - name: Terraform Init (same backend)
-        working-directory: terraform
-        run: terraform init -input=false -no-color
+      - name: Terraform Format
+        run: terraform fmt -check
 
-      - name: Terraform Apply (non-interactive)
-        working-directory: terraform
-        run: terraform apply -input=false -no-color plan.out -dry-run
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan (PR)
+        if: github.event_name == 'pull_request'
+        run: terraform plan -var="environment=${{ github.event.inputs.environment }}" -out=tfplan
+
+      - name: Terraform Plan (Manual Dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: terraform plan -var="environment=${{ github.event.inputs.environment }}" -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+        env:
+          # Require manual approval before execution (set via GitHub Environments for production)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -116,8 +116,10 @@ Proprietary - Webforx Technology Limited
 
 ---
 
-Let me know if:
-- You want me to **refactor your full original CFT** to support all features
-- You’d like the README converted to GitLab-style format or Markdown preview with visuals
+## Useful Troubleshooting commands:
+- Confirm OIDC Provider Exists in the AWS Account:
+  - **aws iam list-open-id-connect-providers**
+- Confirm Role ARn matches whats in github secret
+  - **aws iam get-role --role-name <RoleName> | jq .Role.Arn**
 
-Just upload your full CFT if you still have it — and I’ll rebuild it Terraform-compatible.
+

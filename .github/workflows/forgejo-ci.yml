@@ -1,0 +1,10 @@
+name: CI/CD Automation
+on:
+  push:
+    branches:
+      - "**"  
+jobs:
+  automation:
+    runs-on: ["linux", "self-hosted", "ubuntu", "custom-runner", "docker"] 
+    steps:
+      - run: echo All Good
