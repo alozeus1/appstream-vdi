@@ -1,13 +1,13 @@
 locals {
   merged_tags = merge(
     {
-      Name        = var.stack_name
-      Environment = var.environment
+      Name        = try(local.env.stack_name, var.stack_name)
+      Environment = try(local.env.environment, var.environment)
       App         = "appstream-vdi"
       ManagedBy   = "Terraform"
-      Project     = var.project
+      Project     = try(local.env.project, var.project)
     },
-    var.tags
+    try(local.env.tags, var.tags)
   )
 }
 data "aws_subnet" "primary" {
@@ -15,18 +15,18 @@ data "aws_subnet" "primary" {
 }
 
 locals {
-  primary_subnet_in_vpc = data.aws_subnet.primary.vpc_id == var.vpc_id
+  primary_subnet_in_vpc = data.aws_subnet.primary.vpc_id == try(local.env.vpc_id, var.vpc_id)
 }
 locals {
-  primary_subnet_id = var.subnet_ids[0]
+  primary_subnet_id = try(local.env.subnet_ids[0], var.subnet_ids[0])
 }
 
 # Create a minimal egress SG if none provided
 resource "aws_security_group" "appstream_sg" {
-  count       = var.security_group_id == null ? 1 : 0
-  name        = "${var.project}-${var.environment}-appstream-sg"
+  count       = try(local.env.security_group_id, var.security_group_id) == null ? 1 : 0
+  name        = "${try(local.env.project, var.project)}-${try(local.env.environment, var.environment)}-appstream-sg"
   description = "Security group for AppStream fleet"
-  vpc_id      = var.vpc_id
+  vpc_id      = try(local.env.vpc_id, var.vpc_id)
 
   egress {
     from_port   = 443
@@ -37,16 +37,17 @@ resource "aws_security_group" "appstream_sg" {
 
   tags = local.merged_tags
 }
-
 locals {
-  effective_sg_id = var.security_group_id != null ? var.security_group_id : aws_security_group.appstream_sg[0].id
+  effective_sg_id = try(local.env.security_group_id, var.security_group_id) != null ?
+    try(local.env.security_group_id, var.security_group_id) :
+    aws_security_group.appstream_sg[0].id
 }
 
 # Defensive lookups & preconditions
-data "aws_vpc" "selected" { id = var.vpc_id }
+data "aws_vpc" "selected" { id = try(local.env.vpc_id, var.vpc_id) }
 
 data "aws_subnet" "selected" {
-  for_each = toset(var.subnet_ids)
+  for_each = toset(try(local.env.subnet_ids, var.subnet_ids))
   id       = each.value
 }
 
