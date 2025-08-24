@@ -1,6 +1,6 @@
 locals {
   # Load region-wide defaults
-  base = yamldecode(file("${path.module}/../environments/region.yml"))
+  base = yamldecode(file("${path.module}/../environments/region.yaml"))
 
   # Load environment-specific overrides
   env_specific = yamldecode(file("${path.module}/../environments/webforx-management.yaml"))

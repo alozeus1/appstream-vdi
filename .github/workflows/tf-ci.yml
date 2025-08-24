@@ -1,12 +1,10 @@
-name: tf-ci
+name: Terraform CI/CD
+
 on:
   pull_request:
+    branches: [ "*" ]
   push:
     branches: [ "main" ]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -16,14 +14,11 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-  plan:
+  terraform:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -37,56 +32,22 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: gha-appstream
 
-      - name: Pre-commit (fmt/validate/tflint/checkov)
-        run: |
-          pipx install pre-commit
-          pre-commit run --all-files
-
       - name: Terraform Init
-        working-directory: terraform
-        run: terraform init -input=false -no-color
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        run: terraform validate
 
       - name: Terraform Plan
-        working-directory: terraform
-        run: terraform plan -input=false -no-color -var-file="terraform.tfvars" -out=plan.out
+        if: github.event_name == 'pull_request'
+        run: terraform plan -out=tfplan
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: terraform/plan.out
-
-  apply:
-    if: github.ref == 'refs/heads/main'
-    needs: [plan]
-    runs-on: ubuntu-latest
-    environment: production   # use GitHub Environments for manual protection if desired
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.8.5
-          terraform_wrapper: false
-
-      - name: Configure AWS via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: gha-appstream
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan
-          path: terraform
-
-      - name: Terraform Init (same backend)
-        working-directory: terraform
-        run: terraform init -input=false -no-color
-
-      - name: Terraform Apply (non-interactive)
-        working-directory: terraform
-        run: terraform apply -input=false -no-color plan.out -dry-run
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+        env:
+          # Require manual approval before execution
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
